@@ -1,44 +1,50 @@
-# Object-Oriented Programming
+# Semester 2
 
-## Course Overview
+This folder contains the practical coursework completed during **Semester 2** of my **BS Cyber Security** program at **Air University**.
 
-This folder contains laboratory tasks, assignments, and the semester project completed during the **Object-Oriented Programming** course in the **2nd Semester** of my **BS Cyber Security** degree at **Air University**.
+The coursework during this semester focused on strengthening programming skills through object-oriented software development while introducing the fundamentals of digital system design and hardware simulation.
 
-The course focused on applying object-oriented programming principles using **C++**, emphasizing modular programming, code reusability, and problem-solving through software development.
+## Subjects
 
-## Topics Covered
+- Digital Logic Design
+- Object-Oriented Programming
 
+## Learning Focus
+
+- Digital Logic Fundamentals
+- Combinational and Sequential Circuit Design
+- Digital Circuit Simulation
+- Object-Oriented Programming
 - Classes and Objects
-- Constructors and Destructors
-- Encapsulation
-- Inheritance
-- Polymorphism
-- Function Overloading
-- Operator Overloading
+- Inheritance and Polymorphism
 - File Handling
-- Exception Handling
-- Object-Oriented Design
+- Problem Solving using C++
 
 ## Repository Structure
 
 ```text
-Object_Oriented_Programming
+Semester-2
 │
-├── Labs
-├── Assignments
-└── Semester_Project
+├── Digital_Logic_Design
+│   ├── Labs
+│   ├── Assignments
+│   └── Semester_Project
+│
+└── Object_Oriented_Programming
+    ├── Labs
+    ├── Assignments
+    └── Semester_Project
 ```
 
 ## Contents
 
-- **Labs** – Practical programming exercises completed during laboratory sessions.
-- **Assignments** – Programming assignments demonstrating object-oriented concepts.
-- **Semester Project** – A comprehensive project integrating the concepts learned throughout the course.
+### Digital Logic Design
 
-## Technologies Used
+Contains laboratory experiments, assignments, and the semester project related to digital circuit analysis and simulation using digital logic design software.
 
-- C++
-- Microsoft Visual Studio
+### Object-Oriented Programming
+
+Contains laboratory tasks, programming assignments, and the semester project completed using **C++**, demonstrating the practical application of object-oriented programming concepts.
 
 ## Academic Information
 
