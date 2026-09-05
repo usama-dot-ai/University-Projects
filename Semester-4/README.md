@@ -9,13 +9,11 @@ The semester covers core areas of operating systems, secure software development
 | Subject                                                                           | Focus                                                                             |
 | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | [Operating Systems](./Operating_Systems/)                                         | Processes, threads, memory, scheduling, IPC, and deadlocks                        |
-| [Secure Software_Design_& Development](./Secure_Software_Design_and_Development/) | Secure SDLC, threat modeling, security testing, and secure design                 |
+| [Secure Software Design & Development](./Secure_Software_Design_&_Development/) | Secure SDLC, threat modeling, security testing, and secure design                 |
 | [Network Security](./Network_Security/)                                           | Network defense, routing, firewalls, ACLs, traffic analysis, and security testing |
 | [Cryptography](./Cryptography/)                                                   | Classical ciphers, symmetric/asymmetric cryptography, hashing, and OpenSSL        |
 
 ## 🛠️ Practical Technologies
-
-Across the semester, the coursework involved:
 
 * **Linux & Windows**
 * **C / C++ / Python**
@@ -40,12 +38,12 @@ Across the semester, the coursework involved:
 ## 📂 Repository Structure
 
 ```text
-Semester_4/
+Semester-4/
 │
 ├── Operating_Systems/
 │   └── README.md
 │
-├── Secure_Software_Development_and_Design/
+├── Secure_Software_Design_and_Development/
 │   └── README.md
 │
 ├── Network_Security/
