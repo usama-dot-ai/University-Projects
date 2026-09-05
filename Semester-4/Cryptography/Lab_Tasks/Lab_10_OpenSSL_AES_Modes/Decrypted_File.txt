@@ -1,0 +1,3 @@
+Hi there, This is Lab 10.
+We are exploring the AES encryption using OpenSSL.
+This is the Secret message for encryption.
