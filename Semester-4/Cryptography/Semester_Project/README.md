@@ -23,7 +23,7 @@ The project implements a hybrid cryptographic framework in which:
                                ▼
                     ┌─────────────────────┐
                     │ AES-256-CBC / DES   │
-                    │   File Encryption    │
+                    │   File Encryption   │
                     └──────────┬──────────┘
                                │
                  ┌─────────────┴─────────────┐
