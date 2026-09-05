@@ -1,0 +1,14 @@
+philosopher_id,meals_eaten
+0,22
+1,24
+2,25
+3,25
+4,25
+5,25
+6,26
+7,27
+8,28
+9,23
+# total_meals,250
+# avg_wait_us,5289571.90
+# max_wait_us,7458681
