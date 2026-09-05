@@ -1,0 +1,2 @@
+Today is Thursday. We are doing Hash Lab.
+Modified Content: This is new text being added.
