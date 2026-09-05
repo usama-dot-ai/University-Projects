@@ -1,0 +1,504 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <cstring>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
+
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/dsa.h>
+#include <openssl/sha.h>
+
+using namespace std;
+
+// ------------------------------------------------------------
+//  Helper: Convert binary data to hex string
+// ------------------------------------------------------------
+string to_hex(const unsigned char* data, size_t len) {
+    stringstream ss;
+    ss << hex << setfill('0');
+    for (size_t i = 0; i < len; ++i)
+        ss << setw(2) << (int)data[i];
+    return ss.str();
+}
+
+// ------------------------------------------------------------
+//  SHA-256 hash of a file (returns hex string)
+// ------------------------------------------------------------
+string sha256_file(const string &filename) {
+    SHA256_CTX ctx;
+    SHA256_Init(&ctx);
+    ifstream file(filename, ios::binary);
+    if (!file.is_open())
+        throw runtime_error("Cannot open file: " + filename);
+    vector<char> buffer(8192);
+    while (file.read(buffer.data(), buffer.size()) || file.gcount() > 0) {
+        SHA256_Update(&ctx, buffer.data(), file.gcount());
+    }
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_Final(hash, &ctx);
+    return to_hex(hash, SHA256_DIGEST_LENGTH);
+}
+
+// ------------------------------------------------------------
+//  Symmetric encryption (AES-256-CBC or DES-CBC) using EVP
+//  Returns true on success, writes encrypted data to outfile
+// ------------------------------------------------------------
+bool encrypt_file_symmetric(const string &infile, const string &outfile,
+                            const unsigned char *key, const unsigned char *iv,
+                            const EVP_CIPHER *cipher_type) {
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) return false;
+    if (1 != EVP_EncryptInit_ex(ctx, cipher_type, NULL, key, iv)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return false;
+    }
+    ifstream in(infile, ios::binary);
+    ofstream out(outfile, ios::binary);
+    if (!in || !out) {
+        EVP_CIPHER_CTX_free(ctx);
+        return false;
+    }
+    vector<unsigned char> inbuf(4096);
+    vector<unsigned char> outbuf(4096 + EVP_CIPHER_CTX_block_size(ctx));
+    int outlen = 0;
+    while (in.good()) {
+        in.read(reinterpret_cast<char*>(inbuf.data()), inbuf.size());
+        int inlen = in.gcount();
+        if (1 != EVP_EncryptUpdate(ctx, outbuf.data(), &outlen, inbuf.data(), inlen)) {
+            EVP_CIPHER_CTX_free(ctx);
+            return false;
+        }
+        out.write(reinterpret_cast<char*>(outbuf.data()), outlen);
+    }
+    if (1 != EVP_EncryptFinal_ex(ctx, outbuf.data(), &outlen)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return false;
+    }
+    out.write(reinterpret_cast<char*>(outbuf.data()), outlen);
+    EVP_CIPHER_CTX_free(ctx);
+    return true;
+}
+
+// ------------------------------------------------------------
+//  Symmetric decryption (AES-256-CBC or DES-CBC) using EVP
+// ------------------------------------------------------------
+bool decrypt_file_symmetric(const string &infile, const string &outfile,
+                            const unsigned char *key, const unsigned char *iv,
+                            const EVP_CIPHER *cipher_type) {
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) return false;
+    if (1 != EVP_DecryptInit_ex(ctx, cipher_type, NULL, key, iv)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return false;
+    }
+    ifstream in(infile, ios::binary);
+    ofstream out(outfile, ios::binary);
+    if (!in || !out) {
+        EVP_CIPHER_CTX_free(ctx);
+        return false;
+    }
+    vector<unsigned char> inbuf(4096);
+    vector<unsigned char> outbuf(4096 + EVP_CIPHER_CTX_block_size(ctx));
+    int outlen = 0;
+    while (in.good()) {
+        in.read(reinterpret_cast<char*>(inbuf.data()), inbuf.size());
+        int inlen = in.gcount();
+        if (1 != EVP_DecryptUpdate(ctx, outbuf.data(), &outlen, inbuf.data(), inlen)) {
+            EVP_CIPHER_CTX_free(ctx);
+            return false;
+        }
+        out.write(reinterpret_cast<char*>(outbuf.data()), outlen);
+    }
+    if (1 != EVP_DecryptFinal_ex(ctx, outbuf.data(), &outlen)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return false;
+    }
+    out.write(reinterpret_cast<char*>(outbuf.data()), outlen);
+    EVP_CIPHER_CTX_free(ctx);
+    return true;
+}
+
+// ------------------------------------------------------------
+//  RSA encrypt a short key (AES key or DES key)
+//  Returns encrypted data in 'encrypted_key'
+// ------------------------------------------------------------
+bool rsa_encrypt_key(const unsigned char *key, int key_len,
+                     const string &pubkey_file, vector<unsigned char> &encrypted_key) {
+    FILE *fp = fopen(pubkey_file.c_str(), "r");
+    if (!fp) return false;
+    EVP_PKEY *pkey = PEM_read_PUBKEY(fp, NULL, NULL, NULL);
+    fclose(fp);
+    if (!pkey) return false;
+    RSA *rsa = EVP_PKEY_get1_RSA(pkey);
+    EVP_PKEY_free(pkey);
+    if (!rsa) return false;
+    int rsa_size = RSA_size(rsa);
+    encrypted_key.resize(rsa_size);
+    int ret = RSA_public_encrypt(key_len, key, encrypted_key.data(),
+                                 rsa, RSA_PKCS1_OAEP_PADDING);
+    RSA_free(rsa);
+    return (ret == rsa_size);
+}
+
+// ------------------------------------------------------------
+//  RSA decrypt the encrypted session key
+// ------------------------------------------------------------
+bool rsa_decrypt_key(const vector<unsigned char> &encrypted_key,
+                     const string &privkey_file, vector<unsigned char> &decrypted_key) {
+    FILE *fp = fopen(privkey_file.c_str(), "r");
+    if (!fp) return false;
+    EVP_PKEY *pkey = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
+    fclose(fp);
+    if (!pkey) return false;
+    RSA *rsa = EVP_PKEY_get1_RSA(pkey);
+    EVP_PKEY_free(pkey);
+    if (!rsa) return false;
+    decrypted_key.resize(RSA_size(rsa));
+    int ret = RSA_private_decrypt(encrypted_key.size(), encrypted_key.data(),
+                                  decrypted_key.data(), rsa, RSA_PKCS1_OAEP_PADDING);
+    RSA_free(rsa);
+    if (ret < 0) return false;
+    decrypted_key.resize(ret);
+    return true;
+}
+
+// ------------------------------------------------------------
+//  DSA sign a file (signs its SHA-256 hash)
+//  Returns signature as vector<unsigned char>
+// ------------------------------------------------------------
+bool dsa_sign_file(const string &filename, const string &privkey_file,
+                   vector<unsigned char> &signature) {
+    // Compute SHA-256 of the file
+    string hash_hex = sha256_file(filename);
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        sscanf(hash_hex.c_str() + i*2, "%02hhx", &hash[i]);
+    }
+    // Load DSA private key
+    FILE *fp = fopen(privkey_file.c_str(), "r");
+    if (!fp) return false;
+    DSA *dsa = PEM_read_DSAPrivateKey(fp, NULL, NULL, NULL);
+    fclose(fp);
+    if (!dsa) return false;
+    signature.resize(DSA_size(dsa));
+    unsigned int sig_len;
+    int ret = DSA_sign(0, hash, SHA256_DIGEST_LENGTH, signature.data(), &sig_len, dsa);
+    DSA_free(dsa);
+    if (ret != 1) return false;
+    signature.resize(sig_len);
+    return true;
+}
+
+// ------------------------------------------------------------
+//  DSA verify a file against a signature
+//  Returns true if valid, false otherwise
+// ------------------------------------------------------------
+bool dsa_verify_file(const string &filename, const string &pubkey_file,
+                     const vector<unsigned char> &signature) {
+    string hash_hex = sha256_file(filename);
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        sscanf(hash_hex.c_str() + i*2, "%02hhx", &hash[i]);
+    }
+    FILE *fp = fopen(pubkey_file.c_str(), "r");
+    if (!fp) return false;
+    DSA *dsa = PEM_read_DSA_PUBKEY(fp, NULL, NULL, NULL);
+    fclose(fp);
+    if (!dsa) return false;
+    int ret = DSA_verify(0, hash, SHA256_DIGEST_LENGTH,
+                         signature.data(), signature.size(), dsa);
+    DSA_free(dsa);
+    return (ret == 1);
+}
+
+// ------------------------------------------------------------
+//  Save binary data to file
+// ------------------------------------------------------------
+bool save_binary(const string &filename, const vector<unsigned char> &data) {
+    ofstream out(filename, ios::binary);
+    if (!out) return false;
+    out.write(reinterpret_cast<const char*>(data.data()), data.size());
+    return true;
+}
+
+// ------------------------------------------------------------
+//  Load binary data from file
+// ------------------------------------------------------------
+bool load_binary(const string &filename, vector<unsigned char> &data) {
+    ifstream in(filename, ios::binary);
+    if (!in) return false;
+    in.seekg(0, ios::end);
+    size_t size = in.tellg();
+    in.seekg(0, ios::beg);
+    data.resize(size);
+    in.read(reinterpret_cast<char*>(data.data()), size);
+    return true;
+}
+
+// ------------------------------------------------------------
+//  Main encryption routine (AES or DES)
+//  cipher_name = "aes" or "des"
+// ------------------------------------------------------------
+bool encrypt_main(const string &input_file, const string &cipher_name) {
+    const EVP_CIPHER *cipher = nullptr;
+    int key_len = 0;
+    int iv_len = 0;
+    if (cipher_name == "aes") {
+        cipher = EVP_aes_256_cbc();
+        key_len = 32;  // 256 bits
+        iv_len = 16;   // 128 bits
+    } else if (cipher_name == "des") {
+        cipher = EVP_des_cbc();
+        key_len = 8;   // 64 bits (DES)
+        iv_len = 8;
+    } else {
+        cerr << "Unknown cipher: " << cipher_name << endl;
+        return false;
+    }
+
+    // Generate random key and IV
+    vector<unsigned char> key(key_len), iv(iv_len);
+    if (RAND_bytes(key.data(), key_len) != 1) return false;
+    if (RAND_bytes(iv.data(), iv_len) != 1) return false;
+
+    // Encrypt the file
+    string enc_file = input_file + ".enc";
+    if (!encrypt_file_symmetric(input_file, enc_file, key.data(), iv.data(), cipher)) {
+        cerr << "Symmetric encryption failed" << endl;
+        return false;
+    }
+
+    // Encrypt the session key with RSA
+    vector<unsigned char> encrypted_key;
+    if (!rsa_encrypt_key(key.data(), key_len, "rsa_public.pem", encrypted_key)) {
+        cerr << "RSA key encryption failed" << endl;
+        return false;
+    }
+    if (!save_binary(enc_file + ".key", encrypted_key)) {
+        cerr << "Failed to save encrypted key" << endl;
+        return false;
+    }
+    // Save IV (needed for decryption)
+    if (!save_binary(enc_file + ".iv", iv)) {
+        cerr << "Failed to save IV" << endl;
+        return false;
+    }
+
+    // Sign the encrypted file with DSA
+    vector<unsigned char> signature;
+    if (!dsa_sign_file(enc_file, "dsa_private.pem", signature)) {
+        cerr << "DSA signing failed" << endl;
+        return false;
+    }
+    if (!save_binary(enc_file + ".sig", signature)) {
+        cerr << "Failed to save signature" << endl;
+        return false;
+    }
+
+    cout << "Encryption successful." << endl;
+    cout << "Encrypted file:      " << enc_file << endl;
+    cout << "Encrypted session key: " << enc_file << ".key" << endl;
+    cout << "IV:                  " << enc_file << ".iv" << endl;
+    cout << "Digital signature:   " << enc_file << ".sig" << endl;
+    return true;
+}
+
+// ------------------------------------------------------------
+//  Main decryption routine (AES or DES)
+//  Automatically detects cipher from input
+// ------------------------------------------------------------
+bool decrypt_main(const string &encrypted_file) {
+    // Load encrypted key
+    vector<unsigned char> encrypted_key;
+    if (!load_binary(encrypted_file + ".key", encrypted_key)) {
+        cerr << "Cannot load encrypted key file: " << encrypted_file << ".key" << endl;
+        return false;
+    }
+    // Load IV
+    vector<unsigned char> iv;
+    if (!load_binary(encrypted_file + ".iv", iv)) {
+        cerr << "Cannot load IV file: " << encrypted_file << ".iv" << endl;
+        return false;
+    }
+    // Load signature
+    vector<unsigned char> signature;
+    if (!load_binary(encrypted_file + ".sig", signature)) {
+        cerr << "Cannot load signature file: " << encrypted_file << ".sig" << endl;
+        return false;
+    }
+
+    // Verify signature before decryption
+    if (!dsa_verify_file(encrypted_file, "dsa_public.pem", signature)) {
+        cerr << "SIGNATURE VERIFICATION FAILED! File may be tampered." << endl;
+        return false;
+    }
+    cout << "Signature verified successfully." << endl;
+
+    // Decrypt the session key
+    vector<unsigned char> session_key;
+    if (!rsa_decrypt_key(encrypted_key, "rsa_private.pem", session_key)) {
+        cerr << "RSA key decryption failed" << endl;
+        return false;
+    }
+
+    // Determine cipher from key length
+    const EVP_CIPHER *cipher = nullptr;
+    if (session_key.size() == 32) {
+        cipher = EVP_aes_256_cbc();
+        cout << "Detected AES-256 encryption" << endl;
+    } else if (session_key.size() == 8) {
+        cipher = EVP_des_cbc();
+        cout << "Detected DES encryption" << endl;
+    } else {
+        cerr << "Unknown key length: " << session_key.size() << endl;
+        return false;
+    }
+    if (iv.size() != (size_t)EVP_CIPHER_iv_length(cipher)) {
+        cerr << "IV length mismatch" << endl;
+        return false;
+    }
+
+    string decrypted_file = encrypted_file + ".dec";
+    if (!decrypt_file_symmetric(encrypted_file, decrypted_file,
+                                session_key.data(), iv.data(), cipher)) {
+        cerr << "Symmetric decryption failed" << endl;
+        return false;
+    }
+
+    cout << "Decryption successful. Decrypted file: " << decrypted_file << endl;
+
+    // Optional: Verify integrity via SHA-256 (original file assumed to be lost, but we can compute hash)
+    string original_hash = sha256_file(encrypted_file.substr(0, encrypted_file.find_last_of('.')));  // original input? Not reliable.
+    cout << "Decryption completed. Compare with original manually if available." << endl;
+    return true;
+}
+
+// ------------------------------------------------------------
+//  Performance test: AES vs DES on same file
+// ------------------------------------------------------------
+void performance_test(const string &test_file) {
+    const EVP_CIPHER *ciphers[] = {EVP_aes_256_cbc(), EVP_des_cbc()};
+    const char *names[] = {"AES-256", "DES"};
+    const int key_lens[] = {32, 8};
+    const int iv_lens[] = {16, 8};
+
+    cout << "\n========== Performance Comparison ==========\n";
+    cout << "File: " << test_file << "\n";
+    for (int idx = 0; idx < 2; ++idx) {
+        // Generate random key & IV
+        vector<unsigned char> key(key_lens[idx]), iv(iv_lens[idx]);
+        RAND_bytes(key.data(), key_lens[idx]);
+        RAND_bytes(iv.data(), iv_lens[idx]);
+
+        // Encryption time
+        auto start = chrono::high_resolution_clock::now();
+        string enc_tmp = test_file + ".perf.enc";
+        if (!encrypt_file_symmetric(test_file, enc_tmp, key.data(), iv.data(), ciphers[idx])) {
+            cerr << names[idx] << " encryption failed" << endl;
+            continue;
+        }
+        auto end = chrono::high_resolution_clock::now();
+        auto enc_time = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+
+        // Decryption time
+        start = chrono::high_resolution_clock::now();
+        string dec_tmp = test_file + ".perf.dec";
+        if (!decrypt_file_symmetric(enc_tmp, dec_tmp, key.data(), iv.data(), ciphers[idx])) {
+            cerr << names[idx] << " decryption failed" << endl;
+            continue;
+        }
+        end = chrono::high_resolution_clock::now();
+        auto dec_time = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+
+        cout << names[idx] << " : Encrypt = " << enc_time << " ms, Decrypt = " << dec_time << " ms\n";
+        // Cleanup
+        remove(enc_tmp.c_str());
+        remove(dec_tmp.c_str());
+    }
+    cout << "=============================================\n";
+}
+
+// ------------------------------------------------------------
+//  Tamper test: modify encrypted file and try to decrypt
+// ------------------------------------------------------------
+void tamper_test(const string &encrypted_file) {
+    cout << "\n========== Tamper Test ==========\n";
+    cout << "Original encrypted file: " << encrypted_file << endl;
+
+    // Create a tampered copy
+    string tampered = encrypted_file + ".tampered";
+    ifstream src(encrypted_file, ios::binary);
+    ofstream dst(tampered, ios::binary);
+    dst << src.rdbuf();
+    src.close();
+    dst.close();
+
+    // Modify one byte
+    fstream mod(tampered, ios::binary | ios::in | ios::out);
+    mod.seekp(100, ios::beg);
+    char byte;
+    mod.get(byte);
+    byte ^= 0xFF;
+    mod.seekp(-1, ios::cur);
+    mod.put(byte);
+    mod.close();
+
+    // Try to decrypt the tampered file
+    vector<unsigned char> encrypted_key, iv, signature;
+    load_binary(encrypted_file + ".key", encrypted_key);
+    load_binary(encrypted_file + ".iv", iv);
+    load_binary(encrypted_file + ".sig", signature);
+
+    if (!dsa_verify_file(tampered, "dsa_public.pem", signature)) {
+        cout << "SUCCESS: Signature verification failed as expected (tampered file).\n";
+    } else {
+        cout << "ERROR: Signature verification passed on tampered file (unexpected).\n";
+    }
+    remove(tampered.c_str());
+    cout << "================================\n";
+}
+
+// ------------------------------------------------------------
+//  Main function with command-line interface
+// ------------------------------------------------------------
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        cout << "Usage:\n";
+        cout << "  " << argv[0] << " encrypt <file> [aes|des]   - Encrypt file with AES or DES\n";
+        cout << "  " << argv[0] << " decrypt <encrypted_file>   - Decrypt (auto-detects cipher)\n";
+        cout << "  " << argv[0] << " test <file>                - Compare AES vs DES performance\n";
+        cout << "  " << argv[0] << " tamper <encrypted_file>    - Test signature failure after tampering\n";
+        return 1;
+    }
+
+    string cmd = argv[1];
+    if (cmd == "encrypt" && argc >= 4) {
+        string file = argv[2];
+        string cipher = argv[3];
+        if (cipher != "aes" && cipher != "des") {
+            cerr << "Cipher must be 'aes' or 'des'" << endl;
+            return 1;
+        }
+        if (!encrypt_main(file, cipher)) return 1;
+    }
+    else if (cmd == "decrypt" && argc == 3) {
+        if (!decrypt_main(argv[2])) return 1;
+    }
+    else if (cmd == "test" && argc == 3) {
+        performance_test(argv[2]);
+    }
+    else if (cmd == "tamper" && argc == 3) {
+        tamper_test(argv[2]);
+    }
+    else {
+        cerr << "Invalid command or insufficient arguments." << endl;
+        return 1;
+    }
+    return 0;
+}
