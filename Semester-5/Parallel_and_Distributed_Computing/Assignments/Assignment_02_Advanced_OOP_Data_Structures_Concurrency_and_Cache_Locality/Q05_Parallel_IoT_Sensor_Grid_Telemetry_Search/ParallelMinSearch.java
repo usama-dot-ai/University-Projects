@@ -16,3 +16,13 @@ public class ParallelMinSearch extends SensorSearchEngine implements Runnable {
         }
         return localMin;
     }
+
+    @Override
+    public void run() {
+        this.minResult = processGrid();
+    }
+
+    public double getMinResult() {
+        return minResult;
+    }
+}
