@@ -14,3 +14,14 @@ public class CacheLocalityBenchmark {
         }
         return sum;
     }
+
+    // Column-Major: Non-Contiguous Memory Access -> High Cache Miss frequency
+    public static double traverseColumnMajor(double[][] matrix) {
+        double sum = 0.0;
+        for (int j = 0; j < COLS; j++) {
+            for (int i = 0; i < ROWS; i++) {
+                sum += matrix[i][j];
+            }
+        }
+        return sum;
+    }
