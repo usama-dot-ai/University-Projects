@@ -9,3 +9,6 @@ public class LogProcessorTask implements Runnable {
                 System.out.println(Thread.currentThread().getName() + " interrupted.");
             }
         }
+        System.out.println("[" + Thread.currentThread().getName() + "] Batch Log Analysis Completed.");
+    }
+}    
