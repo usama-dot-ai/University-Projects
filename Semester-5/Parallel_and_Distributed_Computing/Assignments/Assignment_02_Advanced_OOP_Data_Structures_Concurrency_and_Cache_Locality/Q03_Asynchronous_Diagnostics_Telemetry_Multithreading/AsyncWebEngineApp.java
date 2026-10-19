@@ -18,3 +18,15 @@ public class AsyncWebEngineApp {
         // Telemetry tracking active thread states
         System.out.println("Thread Status -> " + telemetryWorker.getName() + " isAlive: " + telemetryWorker.isAlive());
         System.out.println("Thread Status -> " + logWorker.getName() + " isAlive: " + logWorker.isAlive());
+
+        try {
+            // Main waits for clean worker shutdown
+            telemetryWorker.join();
+            logWorker.join();
+        } catch (InterruptedException e) {
+            System.out.println("Main thread interrupted.");
+        }
+
+        System.out.println("All background diagnostics terminated cleanly. Main exiting.");
+    }
+}
