@@ -84,3 +84,14 @@ public class InventoryCatalogManager {
         System.out.println("  Time Taken: " + duration + " ms");
         System.out.println("  Throughput: " + String.format("%.2f", throughput) + " ops/sec\n");
     }
+
+    public static void main(String[] args) {
+        System.out.println("=== High-Contention Inventory Map Benchmark ===");
+        System.out.println("Executing " + THREAD_COUNT + " threads x " + OPERATIONS_PER_THREAD
+                + " operations = 500,000 total ops...\n");
+
+        InventoryCatalogManager manager = new InventoryCatalogManager();
+        manager.benchmarkSynchronizedMap();
+        manager.benchmarkConcurrentMap();
+    }
+}
