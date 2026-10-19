@@ -57,3 +57,13 @@ public class SensorGridMonitorApp {
                 globalMax = maxTasks[i].getMaxResult();
             }
         }
+
+        long endTime = System.currentTimeMillis();
+
+        System.out.println("=== Parallel IoT Sensor Grid Diagnostics ===");
+        System.out.println("Total Sensor Elements Processed: " + totalSensors);
+        System.out.println("Identified Global Min Temperature: " + globalMin + " °C");
+        System.out.println("Identified Global Max Vibration Peak: " + globalMax + " Hz");
+        System.out.println("Total Partitioned Search Time: " + (endTime - startTime) + " ms");
+    }
+}
