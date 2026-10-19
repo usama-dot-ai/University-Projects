@@ -20,3 +20,24 @@ public class RequestQueue {
     public boolean isFull() {
         return size == capacity;
     }
+
+    public void enqueue(char c) {
+        if (!isFull()) {
+            rear = (rear + 1) % capacity;
+            queueArray[rear] = c;
+            size++;
+        } else {
+            System.out.println("Queue Overflow");
+        }
+    }
+
+    public char dequeue() {
+        if (!isEmpty()) {
+            char val = queueArray[front];
+            front = (front + 1) % capacity;
+            size--;
+            return val;
+        }
+        return '\0';
+    }
+}
