@@ -22,3 +22,15 @@ public class PacketSymmetryAuditor {
         }
         return true;
     }
+
+    public static void main(String[] args) {
+        String[] testPackets = { "REVIVER", "TXN_104_01_NXT", "10011001", "SECURITY_GATEWAY" };
+
+        System.out.println("=== Zero-Trust Packet Symmetry Audit Log ===");
+        for (int i = 0; i < testPackets.length; i++) {
+            String packet = testPackets[i];
+            boolean isSymmetric = auditPacketSymmetry(packet);
+            System.out.println("Payload: [" + packet + "] -> Symmetry Verified: " + isSymmetric);
+        }
+    }
+}
