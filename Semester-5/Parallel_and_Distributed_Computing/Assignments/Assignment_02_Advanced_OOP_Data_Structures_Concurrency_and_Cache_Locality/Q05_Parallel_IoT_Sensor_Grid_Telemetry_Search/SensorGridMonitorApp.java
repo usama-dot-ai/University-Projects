@@ -19,3 +19,18 @@ public class SensorGridMonitorApp {
         Thread[] maxThreads = new Thread[numPartitions];
 
         long startTime = System.currentTimeMillis();
+
+        // Partition and fire 4 threads for Min and 4 threads for Max
+        for (int i = 0; i < numPartitions; i++) {
+            int start = i * partitionSize;
+            int end = (i == numPartitions - 1) ? totalSensors : start + partitionSize;
+
+            minTasks[i] = new ParallelMinSearch(telemetry, start, end);
+            maxTasks[i] = new ParallelMaxSearch(telemetry, start, end);
+
+            minThreads[i] = new Thread(minTasks[i]);
+            maxThreads[i] = new Thread(maxTasks[i]);
+
+            minThreads[i].start();
+            maxThreads[i].start();
+        }
