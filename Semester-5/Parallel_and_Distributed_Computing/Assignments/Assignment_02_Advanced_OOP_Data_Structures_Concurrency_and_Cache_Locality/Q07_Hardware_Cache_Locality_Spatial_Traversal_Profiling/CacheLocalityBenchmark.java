@@ -39,3 +39,11 @@ public class CacheLocalityBenchmark {
         System.out.println("=== CPU Cache Line Spatial Locality Benchmark ===");
         System.out.println("Matrix Size: " + ROWS + " x " + COLS + " (4,000,000 double elements)");
         System.out.println("Benchmark Iterations: " + ITERATIONS + "\n");
+
+        // Benchmark Row-Major Traversal
+        long startRow = System.nanoTime();
+        for (int k = 0; k < ITERATIONS; k++) {
+            traverseRowMajor(matrix);
+        }
+        long endRow = System.nanoTime();
+        double avgRowMs = ((endRow - startRow) / 1e6) / ITERATIONS;
