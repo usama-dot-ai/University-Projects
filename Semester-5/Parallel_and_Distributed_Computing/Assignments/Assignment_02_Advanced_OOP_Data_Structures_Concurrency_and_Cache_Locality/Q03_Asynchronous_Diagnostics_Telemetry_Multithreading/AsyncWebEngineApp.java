@@ -10,3 +10,11 @@ public class AsyncWebEngineApp {
         // 2. Thread implementing Runnable
         LogProcessorTask logTask = new LogProcessorTask();
         Thread logWorker = new Thread(logTask, "Log-Worker");
+
+        System.out.println("Spawning asynchronous workers at 50ms...");
+        telemetryWorker.start();
+        logWorker.start();
+
+        // Telemetry tracking active thread states
+        System.out.println("Thread Status -> " + telemetryWorker.getName() + " isAlive: " + telemetryWorker.isAlive());
+        System.out.println("Thread Status -> " + logWorker.getName() + " isAlive: " + logWorker.isAlive());
