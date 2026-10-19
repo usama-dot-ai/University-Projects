@@ -47,3 +47,20 @@ public class CacheLocalityBenchmark {
         }
         long endRow = System.nanoTime();
         double avgRowMs = ((endRow - startRow) / 1e6) / ITERATIONS;
+
+        // Benchmark Column-Major Traversal
+        long startCol = System.nanoTime();
+        for (int k = 0; k < ITERATIONS; k++) {
+            traverseColumnMajor(matrix);
+        }
+        long endCol = System.nanoTime();
+        double avgColMs = ((endCol - startCol) / 1e6) / ITERATIONS;
+
+        double speedup = avgColMs / avgRowMs;
+
+        System.out.println("Results:");
+        System.out.printf("  Average Row-Major Time:    %.3f ms\n", avgRowMs);
+        System.out.printf("  Average Column-Major Time: %.3f ms\n", avgColMs);
+        System.out.printf("  Row-Major Cache Speedup:   %.2fx faster\n\n", speedup);
+    }
+}
