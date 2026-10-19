@@ -11,3 +11,14 @@ public class PacketSymmetryAuditor {
             stack.push(c);
             queue.enqueue(c);
         }
+
+        // Compare LIFO (reversed) vs FIFO (original order)
+        while (!stack.isEmpty() && !queue.isEmpty()) {
+            char fromStack = stack.pop();
+            char fromQueue = queue.dequeue();
+            if (fromStack != fromQueue) {
+                return false;
+            }
+        }
+        return true;
+    }
