@@ -8,3 +8,6 @@ public abstract class SensorSearchEngine {
         this.startIdx = startIdx;
         this.endIdx = endIdx;
     }
+
+    public abstract double processGrid();
+}
