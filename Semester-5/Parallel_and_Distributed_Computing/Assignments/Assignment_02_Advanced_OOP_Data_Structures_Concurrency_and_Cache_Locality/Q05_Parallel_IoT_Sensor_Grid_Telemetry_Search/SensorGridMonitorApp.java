@@ -34,3 +34,26 @@ public class SensorGridMonitorApp {
             minThreads[i].start();
             maxThreads[i].start();
         }
+
+        // Await all workers
+        try {
+            for (int i = 0; i < numPartitions; i++) {
+                minThreads[i].join();
+                maxThreads[i].join();
+            }
+        } catch (InterruptedException e) {
+            System.out.println("Parallel processing interrupted.");
+        }
+
+        // Global Reduction
+        double globalMin = Double.MAX_VALUE;
+        double globalMax = -Double.MAX_VALUE;
+
+        for (int i = 0; i < numPartitions; i++) {
+            if (minTasks[i].getMinResult() < globalMin) {
+                globalMin = minTasks[i].getMinResult();
+            }
+            if (maxTasks[i].getMaxResult() > globalMax) {
+                globalMax = maxTasks[i].getMaxResult();
+            }
+        }
