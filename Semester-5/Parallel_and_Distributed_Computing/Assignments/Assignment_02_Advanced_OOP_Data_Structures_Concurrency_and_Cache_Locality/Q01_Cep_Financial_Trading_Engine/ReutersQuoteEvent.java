@@ -7,3 +7,14 @@ public class ReutersQuoteEvent extends TradeEvent {
         this.bidPrice = bidPrice;
         this.askPrice = askPrice;
     }
+
+    @Override
+    public void dispatch() {
+        double spread = askPrice - bidPrice;
+        System.out.println("[REUTERS QUOTE] Market Feed from: " + senderId
+                + " | Timestamp: " + timestamp
+                + " | Bid: $" + String.format("%.2f", bidPrice)
+                + " | Ask: $" + String.format("%.2f", askPrice)
+                + " | Bid-Ask Spread: $" + String.format("%.4f", spread));
+    }
+}
