@@ -10,3 +10,6 @@ public class TelemetryThread extends Thread {
                 System.out.println(Thread.currentThread().getName() + " interrupted.");
             }
         }
+        System.out.println("[" + Thread.currentThread().getName() + "] Telemetry Capture Completed.");
+    }
+}
