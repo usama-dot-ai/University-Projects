@@ -7,3 +7,9 @@ public class TradingEngineApp {
         // Polymorphic instantiations using superclass references
         TradeEvent fixOrder = new FIXOrderEvent("FIX_GW_NYC", now, 150000.00, "ORD_US_99214");
         TradeEvent reutersQuote = new ReutersQuoteEvent("REUTERS_LDN", now + 15, 240.50, 240.45, 240.55);
+
+        // Dynamic method overriding demonstrated at runtime
+        fixOrder.dispatch();
+        reutersQuote.dispatch();
+    }
+}
