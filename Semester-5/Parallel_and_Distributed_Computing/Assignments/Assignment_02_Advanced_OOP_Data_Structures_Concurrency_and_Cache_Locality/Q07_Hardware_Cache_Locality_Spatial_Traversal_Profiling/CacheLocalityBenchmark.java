@@ -25,3 +25,17 @@ public class CacheLocalityBenchmark {
         }
         return sum;
     }
+
+    public static void main(String[] args) {
+        double[][] matrix = new double[ROWS][COLS];
+
+        // Initialize matrix
+        for (int i = 0; i < ROWS; i++) {
+            for (int j = 0; j < COLS; j++) {
+                matrix[i][j] = 1.0;
+            }
+        }
+
+        System.out.println("=== CPU Cache Line Spatial Locality Benchmark ===");
+        System.out.println("Matrix Size: " + ROWS + " x " + COLS + " (4,000,000 double elements)");
+        System.out.println("Benchmark Iterations: " + ITERATIONS + "\n");
