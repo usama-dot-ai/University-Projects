@@ -16,3 +16,13 @@ public class ParallelMaxSearch extends SensorSearchEngine implements Runnable {
         }
         return localMax;
     }
+
+    @Override
+    public void run() {
+        this.maxResult = processGrid();
+    }
+
+    public double getMaxResult() {
+        return maxResult;
+    }
+}
