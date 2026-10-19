@@ -11,3 +11,15 @@ public class ParallelRiskCalculator extends RecursiveTask<Double> {
         this.start = start;
         this.end = end;
     }
+
+    @Override
+    protected Double compute() {
+        int length = end - start;
+        if (length <= THRESHOLD) {
+            // Sequential base case computation
+            double sum = 0.0;
+            for (int i = start; i < end; i++) {
+                sum += assets[i];
+            }
+            return sum;
+        } else {
