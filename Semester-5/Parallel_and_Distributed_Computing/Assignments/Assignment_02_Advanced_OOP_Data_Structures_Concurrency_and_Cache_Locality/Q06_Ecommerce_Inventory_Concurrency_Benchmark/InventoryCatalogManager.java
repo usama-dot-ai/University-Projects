@@ -29,3 +29,20 @@ public class InventoryCatalogManager {
             });
             workers[i].start();
         }
+
+        for (int i = 0; i < THREAD_COUNT; i++) {
+            try {
+                workers[i].join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        long duration = System.currentTimeMillis() - startTime;
+        long totalOps = (long) THREAD_COUNT * OPERATIONS_PER_THREAD;
+        double throughput = (totalOps / (double) duration) * 1000;
+
+        System.out.println("Collections.synchronizedMap (Coarse-Grained Locking):");
+        System.out.println("  Time Taken: " + duration + " ms");
+        System.out.println("  Throughput: " + String.format("%.2f", throughput) + " ops/sec\n");
+    }
